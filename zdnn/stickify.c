@@ -353,6 +353,8 @@ zdnn_status transform_ztensor(const void *in_buf, zdnn_ztensor *ztensor) {
   uint64_t output_offset =
       0; // moving position as the output is processed, in BYTES
 
+  // Byte size of input data type. Use `n<<input_cell_shift` instead of
+  // n * input_cell_shift for efficiency.
   short input_cell_size =
       get_data_type_size(ztensor->pre_transformed_desc->type);
   short input_cell_shift = input_cell_size / 2;
@@ -381,12 +383,13 @@ zdnn_status transform_ztensor(const void *in_buf, zdnn_ztensor *ztensor) {
                                               AIU_2BYTE_CELLS_PER_STICK);
 
     if (ztensor->pre_transformed_desc->layout != ZDNN_NCHW) {
-
+      fprintf(stderr, "hi alex from stickify\n");
       // N
       for (uint32_t e4x = 0; e4x < ztensor->transformed_desc->dim4; e4x++) {
 
         // used for pushing out_offset from n to n+1 (i.e., + bytes_per_n)
         uint64_t out_offset_n = output_offset;
+        assert(output_offset == e4x * bytes_per_n);
 
         // H
         for (uint32_t e3x = 0; e3x < ztensor->transformed_desc->dim3; e3x++) {
@@ -443,7 +446,7 @@ zdnn_status transform_ztensor(const void *in_buf, zdnn_ztensor *ztensor) {
               // push output_offset to the next c-stick of the same super
               // c-stick, which is bytes_all_h number of bytes away.
               output_offset += bytes_all_h;
-            }
+            } // End for process each C-stick.
 
             // output_offset was pushed around in dim1 loops, so reset it to
             // the next w
