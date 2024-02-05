@@ -15,6 +15,13 @@
  * limitations under the License.
  */
 
+#define HI_ALEX 1
+
+#if HI_ALEX
+#include <omp.h>
+#endif
+
+#include <assert.h>
 #include <fenv.h>
 #include <stdarg.h>
 #include <stdbool.h>
@@ -30,6 +37,7 @@
 #pragma export(zdnn_transform_ztensor)
 #pragma export(zdnn_transform_origtensor)
 #endif
+
 
 /// Return the byte offset of the field in the stick array, based on the input
 /// fields indexes, and the overall dimensions of the input tensor. The use of
@@ -350,8 +358,10 @@ zdnn_status handle_fp_errors(int fe) {
 zdnn_status transform_ztensor(const void *in_buf, zdnn_ztensor *ztensor) {
   uint64_t input_offset =
       0; // moving position as the input is processed, in BYTES
+#if !HI_ALEX
   uint64_t output_offset =
       0; // moving position as the output is processed, in BYTES
+#endif
 
   // Byte size of input data type. Use `n<<input_cell_shift` instead of
   // n * input_cell_shift for efficiency.
@@ -383,10 +393,16 @@ zdnn_status transform_ztensor(const void *in_buf, zdnn_ztensor *ztensor) {
                                               AIU_2BYTE_CELLS_PER_STICK);
 
     if (ztensor->pre_transformed_desc->layout != ZDNN_NCHW) {
+#if HI_ALEX
       fprintf(stderr, "hi alex from stickify\n");
+#endif
       // N
+      #pragma omp parallel for
       for (uint32_t e4x = 0; e4x < ztensor->transformed_desc->dim4; e4x++) {
 
+#if HI_ALEX
+        uint64_t output_offset = e4x * bytes_per_n;
+#endif
         // used for pushing out_offset from n to n+1 (i.e., + bytes_per_n)
         uint64_t out_offset_n = output_offset;
         assert(output_offset == e4x * bytes_per_n);
